@@ -175,9 +175,6 @@
 
 			savefile["contents"] >> contents
 
-			if (atom.x == 1 && atom.y == 6 && atom.z == 1)
-				savefile.ExportText(savefile.cd, "test.txt")
-
 			if (contents && contents.len > 0)
 				var/atom/movable/a
 
@@ -329,9 +326,6 @@
 							if (++z > src.maxz) break
 
 					sleep ((++i % 50 == 25) ? 1 : 0)
-
-				fdel(filename + ".txt")
-				savefile.ExportText("/", filename + ".txt")
 
 				savefile				= null
 
