@@ -16,6 +16,10 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef NQ_CHUNK_TILES_PER_TICK
+#define NQ_CHUNK_TILES_PER_TICK 64
+#endif
+
 /var/nq_chunk_global/nq_chunk					= new/nq_chunk_global();
 
 /nq_chunk_global
@@ -29,7 +33,7 @@
 		{
 			var/zipfile/zipfile					= new/zipfile(filename);
 
-			zipfile.Export("[filename].tmp", "[filename]");
+			zipfile.Export("[filename].tmp", "map.dat");
 
 			var/savefile/savefile				= new/savefile("[filename].tmp");
 
@@ -49,7 +53,7 @@
 
 				for (var/turf/turf in chunk.turfs)
 				{
-					savefile.cd					= "/[z]/[y]/[x]";
+					savefile.cd					= "/turfs/[z]/[y]/[x]";
 
 					reader.ReadTurf(turf);
 
@@ -65,14 +69,14 @@
 						}
 					}
 
-					sleep ((++i % 50 == 25) ? 1 : 0);
+					sleep ((++i % NQ_CHUNK_TILES_PER_TICK == 25) ? 1 : 0);
 				}
 			}
 			catch (var/ex)						{ exception = ex }
 
-			savefile							= null;
+			del savefile
 
-			fdel("[filename].tmp");
+			fdel("[filename].tmp")
 
 			if (exception)						{ throw(exception); }
 		}
@@ -129,6 +133,12 @@
 
 			return FALSE;
 		}
+
+		GetType(type)
+		{
+			// TODO: Add a method for replacing types from older savefile versions.
+			return text2path(type);
+		}
 }
 
 /nq_chunk_reader
@@ -158,8 +168,8 @@
 				{
 					savefile.cd					= "/objects/[ref]";
 
-					var/type					= savefile["type"];
-					var/atom/atom				= new type;
+					var/type					= nq_chunk.GetType(savefile["type"]);
+					var/atom/atom				= new type();
 
 					ReadVars(atom);
 
@@ -234,20 +244,28 @@
 
 				for (var/hash in contents)
 				{
-					a							= LoadObject(hash);
+					try
+					{
+						a						= LoadObject(hash);
 
-					if (a)						{ a.loc = atom; }
+						if (a)					{ a.loc = atom; }
+					}
+					catch (var/ex)				{ world.log << ex; } // TODO: nq_log??
 				}
 			}
 		}
 
 		ReadTurf(turf/turf)
 		{
-			var/type					= savefile["type"];
+			try
+			{
+				var/type						= nq_chunk.GetType(savefile["type"]);
 
-			turf						= new type(turf);
+				turf							= new type(turf);
 
-			ReadVars(turf);
+				ReadVars(turf);
+			}
+			catch (var/ex)						{ world.log << ex; } // TODO: nq_log??
 		}
 }
 
@@ -362,7 +380,7 @@
 					}
 				}
 
-				savefile["type"] << atom.type;
+				savefile["type"] << "[atom.type]";
 
 				var/list/contents				= new/list();
 				var/mob/m
@@ -408,7 +426,7 @@
 
 				for (var/turf/turf in src.turfs)
 				{
-					savefile.cd					= "/[z]/[y]/[x]";
+					savefile.cd					= "/turfs/[z]/[y]/[x]";
 
 					src.WriteAtom(turf, savefile);
 
@@ -424,16 +442,16 @@
 						}
 					}
 
-					sleep ((++i % 50 == 25) ? 1 : 0);
+					sleep ((++i % NQ_CHUNK_TILES_PER_TICK == 25) ? 1 : 0);
 				}
 
-				savefile						= null;
+				del savefile
 
 				fdel(filename);
 
 				var/zipfile/zipfile				= new(filename);
 
-				zipfile.Import("[filename].tmp", "//[filename]")
+				zipfile.Import("[filename].tmp", "//map.dat")
 
 				zipfile.Close()
 			}
@@ -444,3 +462,5 @@
 			if (exception)						{ throw(exception) }
 		}
 }
+
+#undef NQ_CHUNK_TILES_PER_TICK
